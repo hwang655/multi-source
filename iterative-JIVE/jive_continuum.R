@@ -2,6 +2,7 @@ library(quadprog)
 library(nleqslv)
 library(Matrix)
 library(rlist)
+library(MASS)
 
 SOLVE = function(x){
   if (sum(dim(x))){
