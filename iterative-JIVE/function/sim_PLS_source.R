@@ -2,8 +2,8 @@ library(MASS)
 library(pls)
 library(purrr)
 library(pracma)
+library(glmnet)
 source("./function/jive_continuum.R")
-source("./function/jive.R")
 myseed=1
 set.seed(myseed)
 r = 2
@@ -26,15 +26,15 @@ alpha2 = c(2, 0.5)*10
 
 Q = randortho(n, type = "orthonormal")
 U = Q[,1:r]%*%DIAG(L)
-W1 = Q1[,(r+1):(r+r1)]%*%DIAG(L1)
-W2 = Q2[,(r+r1+1):(r+r1+r2)]%*%DIAG(L2)
+W1 = Q[,(r+1):(r+r1)]%*%DIAG(L1)
+W2 = Q[,(r+r1+1):(r+r1+r2)]%*%DIAG(L2)
 
 P = randortho(p, type = "orthonormal")
-S = matrix(P[1:r,], ncol = n)
+S = P[1:r,]
 P = randortho(p1, type = "orthonormal")
-S1 = matrix(P[1:r1,], ncol = n)
+S1 = P[1:r1,]
 P = randortho(p2, type = "orthonormal")
-S2 = matrix(P[1:r2,], ncol = n)
+S2 = P[1:r2,]
 
 # V = randortho(n, type = "orthonormal")
 # Z = matrix(V[,1:r], nrow = n)
@@ -83,8 +83,8 @@ X.list = list(t(X1), t(X2))
 
 Q = randortho(n, type = "orthonormal")
 U = Q[,1:r]%*%DIAG(L)
-W1 = Q1[,(r+1):(r+r1)]%*%DIAG(L1)
-W2 = Q2[,(r+r1+1):(r+r1+r2)]%*%DIAG(L2)
+W1 = Q[,(r+1):(r+r1)]%*%DIAG(L1)
+W2 = Q[,(r+r1+1):(r+r1+r2)]%*%DIAG(L2)
 
 #Z = randortho(r, type = "orthonormal")
 #Z1 = randortho(r1, type = "orthonormal")
@@ -134,14 +134,14 @@ ml.continuum = ml.continuum.pcr
 beta.Cind = ml.continuum$beta.Cind
 Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
 
-MSE= list.append(MSE, mean((Y.test - ml.continuum$intercept - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
+MSE= list.append(MSE, mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
 
 ml.continuum.pls = continuum.multisource.iter.v1(X.list, Y, lambda = 0, gam = 1, rankJ = r, rankA = c(r1, r2))
 ml.continuum = ml.continuum.pls
 beta.Cind = ml.continuum$beta.Cind
 Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
 
-MSE= list.append(MSE, mean((Y.test - ml.continuum$intercept - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
+MSE= list.append(MSE, mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
 
 
 ml.ridge = cv.glmnet(x = X, y = Y, alpha = 0, standardize = F, intercept = F)
