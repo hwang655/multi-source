@@ -553,7 +553,8 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
     beta.C = C2beta(t(X.homo), Y.homo, C, lambda = lambda)$beta
     Yhat.homo = t(X.homo)%*%beta.C
     Y.heter = Y - Yhat.homo
-    X.homo = t(U.%*%t(C))
+    # X.homo = t(U.%*%t(C))
+    X.homo = t(t(X)%*%C%*%t(C))
 
     X.heter.list = list()
     temp = X.homo
@@ -594,7 +595,7 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
     Yhat.heter = do.call("+", Yhat.heter.list)
 
     Y.homo = Y - Yhat.heter
-    X.heter.list = lapply(1:G, function(g) t(t(X.heter.list[[g]])%*%Cind[[g]]%*%SOLVE(t(Cind[[g]])%*%Cind[[g]])%*%t(Cind[[g]])))
+    X.heter.list = lapply(1:G, function(g) t(t(X.heter.list[[g]])%*%Cind[[g]]%*%t(Cind[[g]])))
 
     if (orthIndiv & nrun == 0){
       for (g in 1:G){
@@ -618,9 +619,9 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
     R = do.call(rbind, R.list)
 
     if (gam == 1e10){
-      if (!nrun%%10){
-        print(norm(R, type = "f"))
-      }
+      # if (!nrun%%10){
+      #   print(norm(R, type = "f"))
+      # }
       if (norm(Rlast - R, type = "f") <= conv){
         converged <- T
       }
@@ -628,9 +629,9 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
       CT1 = (ct.homo - ct.homo.last)/ct.homo.last
       CT2 = lapply(1:G, function(g) as.vector((ct.heter[[g]]-ct.heter.last[[g]])/ct.heter.last[[g]]))
       CT = c(CT1, do.call(c, CT2))
-      if (!nrun%%10){
-        print(c(ct.homo, do.call(c, ct.heter)))
-      }
+      # if (!nrun%%10){
+      #   print(c(ct.homo, do.call(c, ct.heter)))
+      # }
       if (max(abs(CT), na.rm = T) <= conv){
         converged <- T
       }
@@ -638,13 +639,13 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
 
     nrun = nrun + 1
   }
-  if (converged) {
-    cat(paste("Algorithm converged after ", nrun,
-              " iterations.\n"))
-  }else{
-    cat(paste("Algorithm did not converge after ",
-              nrun, " iterations.\n"))
-  }
+  # if (converged) {
+  #   cat(paste("Algorithm converged after ", nrun,
+  #             " iterations.\n"))
+  # }else{
+  #   cat(paste("Algorithm did not converge after ",
+  #             nrun, " iterations.\n"))
+  # }
 
   beta.C0 = beta.C
   beta.Cind0 = beta.Cind
@@ -829,7 +830,7 @@ continuum.ridge.fix = function(X, Y, G, lambda, gam, om, vertical = TRUE, verbos
   fn = function(rho){
     #    A = diag(tau^2*rho^(gam-2)*(gam*rho-(gam-1)*(n*lambda)), m) + (1-gam)*rho^(gam-2)*tau^2*E
     A = diag(tau^2*(gam*rho-(gam-1)*(n*lambda)), m) + (1-gam)*tau^2*E
-    M = solve(A)
+    M = SOLVE(A)
     #    q = tau*rho^(gam-1)*d
     q = tau*rho*d
     Mq = M%*%q
@@ -853,7 +854,7 @@ continuum.ridge.fix = function(X, Y, G, lambda, gam, om, vertical = TRUE, verbos
 
   #  A = diag(tau^2*rho^(gam-2)*(gam*rho-(gam-1)*(n*lambda)), m) + (1-gam)*rho^(gam-2)*tau^2*E
   A = diag(tau^2*(gam*rho-(gam-1)*(n*lambda)), m) + (1-gam)*tau^2*E
-  M = solve(A)
+  M = SOLVE(A)
   #  q = tau*rho^(gam-1)*d
   q = tau*rho*d
   Mq = M%*%q
@@ -865,7 +866,7 @@ continuum.ridge.fix = function(X, Y, G, lambda, gam, om, vertical = TRUE, verbos
   fn = function(rho){
     #    A = diag(tau^2*rho^(gam-2)*(gam*rho-(gam-1)*(n*lambda)), m) + (1-gam)*rho^(gam-2)*tau^2*E
     A = diag(tau^2*(gam*rho-(gam-1)*(n*lambda)), m) + (1-gam)*tau^2*E
-    M = solve(A)- solve(A)%*%B%*%SOLVE(t(B)%*%solve(A)%*%B)%*%t(B)%*%solve(A)
+    M = SOLVE(A)- SOLVE(A)%*%B%*%SOLVE(t(B)%*%SOLVE(A)%*%B)%*%t(B)%*%SOLVE(A)
     #    q = tau*rho^(gam-1)*d
     q = tau*rho*d
     Mq = M%*%q
@@ -873,10 +874,10 @@ continuum.ridge.fix = function(X, Y, G, lambda, gam, om, vertical = TRUE, verbos
     return(t(z)%*%E%*%z + n*lambda - rho)
   }
 
-#  while (ncol(Z) < om & rcond(t(B)%*%solve(A)%*%B) > 1e-10){
+#  while (ncol(Z) < om & rcond(t(B)%*%SOLVE(A)%*%B) > 1e-10){
   while (ncol(Z) < om){
     # print(1)
-    # print(rcond(t(B)%*%solve(A)%*%B))
+    # print(rcond(t(B)%*%SOLVE(A)%*%B))
     nleqslv.res = nleqslv(rho0, fn, method = "Newton", global = "none", control = list(maxit = 150))
     rho = nleqslv.res$x
     if (nleqslv.res$termcd != 1 && verbose){
@@ -887,12 +888,12 @@ continuum.ridge.fix = function(X, Y, G, lambda, gam, om, vertical = TRUE, verbos
     A = diag(tau^2*(gam*rho-(gam-1)*(n*lambda)), m) + (1-gam)*tau^2*E
 
     # print(2)
-    # print(rcond(t(B)%*%solve(A)%*%B))
+    # print(rcond(t(B)%*%SOLVE(A)%*%B))
 
-    # if (rcond(t(B)%*%solve(A)%*%B) < 1e-10){
+    # if (rcond(t(B)%*%SOLVE(A)%*%B) < 1e-10){
     #   break
     # }
-    M = solve(A)- solve(A)%*%B%*%SOLVE(t(B)%*%solve(A)%*%B)%*%t(B)%*%solve(A)
+    M = SOLVE(A)- SOLVE(A)%*%B%*%SOLVE(t(B)%*%SOLVE(A)%*%B)%*%t(B)%*%SOLVE(A)
     #    q = tau*rho^(gam-1)*d
     q = tau*rho*d
     Mq = M%*%q
@@ -904,7 +905,7 @@ continuum.ridge.fix = function(X, Y, G, lambda, gam, om, vertical = TRUE, verbos
   }
   C = V%*%Z
   C = C[,0:min(ncol(C), om)]
-  a = V%*%solve(E)^(1/2)%*%Z
+  a = V%*%SOLVE(E)^(1/2)%*%Z
   return(list(C = as.matrix(C), a = a, V = as.matrix(V), Z = Z, E = E))
 }
 

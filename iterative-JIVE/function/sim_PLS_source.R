@@ -4,7 +4,13 @@ library(purrr)
 library(pracma)
 library(glmnet)
 source("./function/jive_continuum.R")
+
+MSE = NULL
+
+result = NULL
+
 myseed=1
+for(myseed in 1:100){
 set.seed(myseed)
 r = 2
 r1 = 2
@@ -124,7 +130,7 @@ X.test = cbind(X1, X2)
 Y.test = X.test%*%t(S)%*%alpha + X1%*%t(S1)%*%alpha1+X2%*%t(S2)%*%alpha2+e
 X.test.list = list(t(X1), t(X2))
 
-MSE = list()
+
 # ----------------------------------------------- run model ----------------------------------------------------
 # ml.jive = jive.multisource(X.list, rankJ = r, rankA = c(r1, r2), method = "given", orthIndiv = T)
 
@@ -134,27 +140,28 @@ ml.continuum = ml.continuum.pcr
 beta.Cind = ml.continuum$beta.Cind
 Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
 
-MSE= list.append(MSE, mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
+MSE= c(MSE,mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
 
 ml.continuum.pls = continuum.multisource.iter.v1(X.list, Y, lambda = 0, gam = 1, rankJ = r, rankA = c(r1, r2))
 ml.continuum = ml.continuum.pls
 beta.Cind = ml.continuum$beta.Cind
 Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
 
-MSE= list.append(MSE, mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
+MSE= c(MSE,mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
 
 
 ml.ridge = cv.glmnet(x = X, y = Y, alpha = 0, standardize = F, intercept = F)
-MSE = list.append(MSE, mean((Y.test -predict(ml.ridge, newx = X.test, s = ml.ridge$lambda.min) )^2))
+MSE= c(MSE, mean((Y.test -predict(ml.ridge, newx = X.test, s = ml.ridge$lambda.min) )^2))
 
 ml.pls = plsr(Y~X, validation = "CV", center = F, scale = F)
 ncomp.pls = selectNcomp(ml.pls, method = "randomization", plot = F)
-MSE = list.append(MSE, mean((predict(ml.pls, newdata = X.test, ncomp = r+r1+r2)[,,1] - Y.test)^2))
+MSE= c(MSE,mean((predict(ml.pls, newdata = X.test, ncomp = r+r1+r2)[,,1] - Y.test)^2))
 
 ml.pcr = pcr(Y~X, validation = "CV", center = F, scale = F)
 ncomp.pcr = selectNcomp(ml.pcr, method = "randomization", plot = F)
-MSE = list.append(MSE, mean((predict(ml.pcr, newdata = X.test, ncomp = r+r1+r2)[,,1] - Y.test)^2))
-
-MSE = do.call(rbind, MSE)
-file.name = "result.csv"
-write.table(t(c(myseed, as.vector(MSE))), file = file.name, sep = ',', append = T, col.names = F, row.names = F)
+MSE= c(MSE,mean((predict(ml.pcr, newdata = X.test, ncomp = r+r1+r2)[,,1] - Y.test)^2))
+result = rbind(result,MSE)
+}
+row.names(result) = c("cr.pcr","cr.pls","ridge","pls","pcr")
+# file.name = "result.csv"
+# write.table(t(c(myseed, as.vector(MSE))), file = file.name, sep = ',', append = T, col.names = F, row.names = F)
