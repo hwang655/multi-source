@@ -17,16 +17,16 @@ current = getwd()
 source("./function/jive_continuum.R")
 # setwd(current)
 para = matrix(0,nrow=10,ncol=6)
-para[1,] = c(100,50,50,2,1,1)
-para[2,] = c(100,50,50,2,1,2)
-para[3,] = c(100,50,50,2,1,4)
+para[1,] = c(100,50,50,1,1,4)
+para[2,] = c(100,90,50,1,1,4)
+para[3,] = c(100,90,50,1,4,1)
 para[4,] = c(100,50,50,1,1,1)
 para[5,] = c(100,90,50,1,4,1)
 para[6,] = c(100,90,50,1,1,4)
-result = NULL
 myseed=1
-for(case in 1:6){
-  for(myseed in 1:30){
+for(case in 1:4){
+  result = NULL
+  for(myseed in 1:10){
     print(myseed)
     set.seed(myseed)
     
@@ -62,6 +62,9 @@ for(case in 1:6){
     V = svd(X)$v[,1:q]%*%rep(1/sqrt(q), q)
     V1 = svd(X1- X%*%V%*%t(V[1:p1,]))$v[,1:q1]%*%rep(1/sqrt(q1), q1)
     V2 = svd(X2- X%*%V%*%t(V[(p1+1):p,]))$v[,1:q2]%*%rep(1/sqrt(q2), q2)
+    # V = svd(X)$v[,1:q]
+    # V1 = svd(X1- X%*%V%*%t(V[1:p1,]))$v[,1:q1]
+    # V2 = svd(X2- X%*%V%*%t(V[(p1+1):p,]))$v[,1:q2]
     
     e = rnorm(n)*.2
     Y = X%*%V%*%alpha + X1%*%V1%*%alpha1 + X2%*%V2%*%alpha2 + e
@@ -96,6 +99,23 @@ for(case in 1:6){
     Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
     
     MSE= c(MSE,mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
+    
+    
+    ml.continuum.pcr = continuum.multisource.iter.v1(X.list, Y, lambda = 0, gam = 1e10, rankJ = r, rankA = c(r1, r2),center.X = F, scale.X = F, center.Y = F, scale.Y = F,  orthIndiv = T)
+    ml.continuum = ml.continuum.pcr
+    # ml = decomposeX(X.test.list, ml.continuum$U[[ml.continuum$nrun]], ml.continuum$W[[ml.continuum$nrun]], ml.continuum$centerValues.X, ml.continuum$scaleValues.X)
+    beta.Cind = ml.continuum$beta.Cind
+    Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
+    
+    MSE= c(MSE,mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
+    
+    ml.continuum.pls = continuum.multisource.iter.v1(X.list, Y, lambda = 0, gam = 1, rankJ = r, rankA = c(r1, r2),center.X = F, scale.X = F, center.Y = F, scale.Y = F,  orthIndiv = T)
+    ml.continuum = ml.continuum.pls
+    beta.Cind = ml.continuum$beta.Cind
+    Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
+    
+    MSE= c(MSE,mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
+    
     
     
     ml.ridge = cv.glmnet(x = X, y = Y, alpha = 0, standardize = F, intercept = F)
