@@ -441,6 +441,13 @@ continuum.multisource.iter = function(X.list, Y, lambda, gam, rankJ, rankA, maxi
 
 continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, maxiter = 1000, conv = 1e-6, center.X = TRUE, scale.X = TRUE, center.Y = TRUE, scale.Y = TRUE,  orthIndiv = T,I.initial = NULL){
   G = length(X.list)
+
+    for (g in 1:G) {
+      temp <- svd(t(X.list[[g]]), nu = min(ncol(X.list[[g]]),
+        nrow(X.list[[g]])),nv = min(ncol(X.list[[g]]),
+          nrow(X.list[[g]])))
+      X.list[[g]] <- t(temp$u %*% diag(x = temp$d) %*% t(temp$v))
+    }
   # center and scale X
   {
     centerValues.X <- list()
@@ -463,6 +470,9 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
     }
   }
 
+  X = do.call(rbind, X.list)
+  n = ncol(X)
+  P = sum(p)
   # center and scale preprocess Y
   {
     if (center.Y){
@@ -479,9 +489,6 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
     Y = sweep(matrix(Y), 2, scaleValues.Y, FUN = "/")
   }
 
-  X = do.call(rbind, X.list)
-  n = ncol(X)
-  P = sum(p)
 
 
   if (gam == 0){ # special case of pcr
@@ -520,7 +527,7 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
   mse = 0
   r = Y
   r[,] = 0
-
+  X.homo = matrix(0, P, n)
   ct.homo = matrix(0, nrow = rankJ, ncol = 1)
   ct.heter = lapply(1:G, function(g) matrix(0, nrow = rankA[g], ncol = 1))
 
@@ -529,6 +536,9 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
 
     ct.homo.last = ct.homo
     ct.heter.last = ct.heter
+
+        X.homo.last = X.homo
+        X.heter.last = do.call(rbind, X.heter.list)
 
     X.homo.list = lapply(1:G, function(g) X.list[[g]] - X.heter.list[[g]])
     X.homo = do.call(rbind, X.homo.list)
@@ -554,7 +564,13 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
     Yhat.homo = t(X.homo)%*%beta.C
     Y.heter = Y - Yhat.homo
     # X.homo = t(U.%*%t(C))
-    X.homo = t(t(X)%*%C%*%t(C))
+      if (gam == 1e10){
+
+        X.homo = t(t(X.homo)%*%C%*%t(C))
+      }else{
+
+        X.homo = t(t(X)%*%C%*%t(C))
+      }
 
     X.heter.list = list()
     temp = X.homo
@@ -568,14 +584,16 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
 
     # individual estimation
     for (g in 1:G){
-      if (orthIndiv){  # orthogonalization
-        if (nrun > 0){
+      if (rankA[g]){   # estimate
+        # X.heter.list[[g]] = (X.list[[g]] - X.homo.list[[g]])%*%(diag(n)-C%*%t(C))
+        temp = X.heter.list[[g]]
+        if (orthIndiv & nrun>0){  # orthogonalization
           for (j in (1:G)[-g]){
             X.heter.list[[g]] <- X.heter.list[[g]]%*%(diag(n)-t(X.heter.list[[j]])%*%SOLVE((X.heter.list[[j]])%*%t(X.heter.list[[j]]))%*%X.heter.list[[j]])
+            # temp <- temp %*% (diag(n) - Cind[[j]] %*%
+            #   t(Cind[[j]]))
           }
         }
-      }
-      if (rankA[g]){   # estimate
         if (gam == 1e10){
           ml.heter = svd(t(X.heter.list[[g]]), nu = rankA[g], nv = rankA[g])
           Cind[[g]] = ml.heter$v
@@ -622,7 +640,8 @@ continuum.multisource.iter.v1 = function(X.list, Y, lambda, gam, rankJ, rankA, m
       # if (!nrun%%10){
       #   print(norm(R, type = "f"))
       # }
-      if (norm(Rlast - R, type = "f") <= conv){
+      if (norm(X.homo - X.homo.last, type = "f") <= conv & norm(do.call(rbind, X.heter.list)-
+        X.heter.last, type = "f") <= conv) {
         converged <- T
       }
     }else{
