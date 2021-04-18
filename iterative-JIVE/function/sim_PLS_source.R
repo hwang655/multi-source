@@ -5,6 +5,7 @@ library(pracma)
 library(glmnet)
 library(R.matlab)
 library(r.jive)
+library(ajive)
 source("./function/jive_continuum.R")
 
 Y.pcr.list = NULL
@@ -16,20 +17,20 @@ myseed=1
 seed.seq = 1:20
 for(myseed in seed.seq){
   MSE = NULL
-set.seed(myseed)
+set.seed(134+myseed)
 r = 2
 r1 = 2
 r2 = 2
 n = 50
-p1 = 50
-p2 = 50
+p1 = 10
+p2 = 100
 L = c(1, 1)
 L1 = c(1, 1)
 L2 = c(1, 1)
 p = p1 + p2
 G = 2
 alpha = c(5, 3)*10
-alpha1 = c(1, 0.5)*10
+alpha1 = c(1, 0.5)*100
 alpha2 = c(2, 0.5)*10
 # beta = c(rep(1, p))*10
 # beta1 = c(rep(0, 5), rep(1, p1-5))*5
@@ -40,12 +41,12 @@ U = Q[,1:r]%*%DIAG(L)
 W1 = Q[,(r+1):(r+r1)]%*%DIAG(L1)
 W2 = Q[,(r+r1+1):(r+r1+r2)]%*%DIAG(L2)
 
-P = randortho(p, type = "orthonormal")
-S = P[1:r,]
 P = randortho(p1, type = "orthonormal")
-S1 = P[1:r1,]
+S = P[1:r,]
+S1 = P[(r+1):(r+r1),]
 P = randortho(p2, type = "orthonormal")
-S2 = P[1:r2,]
+S = cbind(S,P[1:r,])/2
+S2 = P[(r+1):(r+r2),]
 
 # V = randortho(n, type = "orthonormal")
 # Z = matrix(V[,1:r], nrow = n)
@@ -57,16 +58,16 @@ S2 = P[1:r2,]
 # a1 = t(P)%*%DIAG(c(rep(0, r1), 1/L1, rep(0, n - 2*r1)))%*%Z1
 # a2 = t(P)%*%DIAG(c(rep(0, r1+r2), 1/L1, rep(0, n - 2*r1-r2)))%*%Z2
 
-E1 = t(mvrnorm(n, rep(0, p1), diag(p1))*0.01)
-E2 = t(mvrnorm(n, rep(0, p2), diag(p2))*0.01)
+E1 = (mvrnorm(n, rep(0, p1), diag(p1))*0.01)*10
+E2 = (mvrnorm(n, rep(0, p2), diag(p2))*0.01)*10
 
 J = U%*%S
-J1 = J[,1:p1]
+J1 = J[,1:p1]*5
 J2 = J[,(p1+1):(p1+p2)]
 I1 = W1%*%S1
 I2 = W2%*%S2
 
-X1 = J1 + I1 + E1
+X1 = (J1 + I1 + E1)
 X2 = J2 + I2 + E2
 # X1 = J1  + E1
 # X2 = J2  + E2
@@ -114,16 +115,16 @@ W2 = Q[,(r+r1+1):(r+r1+r2)]%*%DIAG(L2)
 # Z2 = matrix(P[(r+r1+1):(r+r1+r2),], ncol = n)
 # S2 = Z2%*%V
 
-E1 = t(mvrnorm(n, rep(0, p1), diag(p1))*0.01)
-E2 = t(mvrnorm(n, rep(0, p2), diag(p2))*0.01)
+E1 = (mvrnorm(n, rep(0, p1), diag(p1))*0.01)*10
+E2 = (mvrnorm(n, rep(0, p2), diag(p2))*0.01)*10
 
 J = U%*%S
-J1 = J[,1:p1]
+J1 = J[,1:p1]*5
 J2 = J[,(p1+1):(p1+p2)]
 I1 = W1%*%S1
 I2 = W2%*%S2
 # 
-X1 = J1 + I1 + E1
+X1 = (J1 + I1 + E1)
 X2 = J2 + I2 + E2
 # X1 = J1  + E1
 # X2 = J2  + E2
@@ -154,14 +155,14 @@ Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
 Y.pcr.list = list.append(Y.pcr.list,Yhat.heter)
 MSE= c(MSE,mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
 
-ml.continuum.pls = continuum.multisource.iter.v1(X.list, Y, lambda = 0, gam = 1, rankJ = r, rankA = c(r1, r2),orthIndiv = F,center.X=F, center.Y = F,scale.X=F,scale.Y=F)
-# ml.continuum.pls = continuum.multisource.iter.v1(X.list, Y, lambda = 0, gam = 1, rankJ = r, rankA = c(r1, r2))
-ml.continuum = ml.continuum.pls
-beta.Cind = ml.continuum$beta.Cind
-Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
+# ml.continuum.pls = continuum.multisource.iter.v1(X.list, Y, lambda = 0, gam = 1, rankJ = r, rankA = c(r1, r2),orthIndiv = F,center.X=F, center.Y = F,scale.X=F,scale.Y=F)
+# # ml.continuum.pls = continuum.multisource.iter.v1(X.list, Y, lambda = 0, gam = 1, rankJ = r, rankA = c(r1, r2))
+# ml.continuum = ml.continuum.pls
+# beta.Cind = ml.continuum$beta.Cind
+# Yhat.heter = (X1)%*%beta.Cind[[1]]+(X2)%*%beta.Cind[[2]]
 
-Y.pls.list = list(Y.pls.list,Yhat.heter)
-MSE= c(MSE,mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
+# Y.pls.list = list(Y.pls.list,Yhat.heter)
+# MSE= c(MSE,mean((Y.test - as.numeric(ml.continuum$intercept) - X.test%*%ml.continuum$beta.C - Yhat.heter)^2))
 
 
 ml.ridge = cv.glmnet(x = X, y = Y, alpha = 0, standardize = F, intercept = F)
@@ -174,10 +175,16 @@ MSE= c(MSE,mean((predict(ml.pls, newdata = X.test, ncomp = r+r1+r2)[,,1] - Y.tes
 ml.pcr = pcr(Y~X, validation = "CV", center = F, scale = F)
 ncomp.pcr = selectNcomp(ml.pcr, method = "randomization", plot = F)
 MSE= c(MSE,mean((predict(ml.pcr, newdata = X.test, ncomp = r+r1+r2)[,,1] - Y.test)^2))
+
+# ajive_result = ajive(list(t(X.list[[1]]),t(X.list[[2]])),c(r1,r2),joint_rank = r)
+# ajive_result$block_decomps
+
+print(MSE)
+print(ml.continuum.pcr$nrun)
 result = rbind(result,MSE)
 }
 # colnames(result) = c("cr.pcr","cr.pls")
 # rownames(result) = seed.seq
 row.names(result) = c("cr.pcr","cr.pls","ridge","pls","pcr")
-file.name = "result.csv"
+# file.name = "result.csv"
 # write.table(t(c(myseed, as.vector(MSE))), file = file.name, sep = ',', append = T, col.names = F, row.names = F)
